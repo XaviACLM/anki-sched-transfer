@@ -1,6 +1,7 @@
 """
 export relevant libraries from anki, as .apkg, with all extra information, to this folder.
 """
+
 from typing import Optional
 import zipfile
 import os, shutil
@@ -40,19 +41,24 @@ class DeckWrangler:
         else:
             with zipfile.ZipFile(pkg_name, "r") as zip_f:
                 zip_f.extractall(self.name)
-            
+
         self.base_path = ".\\{}".format(self.name)
 
-        self.zstd_db_path = os.path.join(self.base_path, 'collection.anki21b')
+        self.zstd_db_path = os.path.join(self.base_path, "collection.anki21b")
         if os.path.exists(self.zstd_db_path):
             self.uses_zstd = True
-            temp_file = tempfile.NamedTemporaryFile(delete=False, dir=self.base_path, suffix='.anki21')
-            with open(self.zstd_db_path, 'rb') as compressed_file, open(temp_file.name, 'wb') as decompressed_file:
+            temp_file = tempfile.NamedTemporaryFile(
+                delete=False, dir=self.base_path, suffix=".anki21"
+            )
+            with (
+                open(self.zstd_db_path, "rb") as compressed_file,
+                open(temp_file.name, "wb") as decompressed_file,
+            ):
                 decompressed_file.write(pyzstd.decompress(compressed_file.read()))
             self.db_path = temp_file.name  # Set the decompressed file path
         else:
             self.uses_zstd = False
-            self.db_path = os.path.join(self.base_path, 'collection.anki21')
+            self.db_path = os.path.join(self.base_path, "collection.anki21")
 
         self.media_path = ".\\{}\\media".format(self.name)
 
@@ -69,14 +75,17 @@ class DeckWrangler:
 
         :param media_files: A list of paths to media files to include in the deck.
         """
-        raise Exception("This method doesn't work currently. Might be fixable by doing a closer imitation of ankilib")
+        raise Exception(
+            "This method doesn't work currently. Might be fixable by doing a closer imitation of ankilib"
+        )
         if os.path.exists(self.media_path):
             os.remove(self.media_path)
 
-        media_json = {idx: os.path.basename(path) for idx, path in enumerate(media_files)}
+        media_json = {
+            idx: os.path.basename(path) for idx, path in enumerate(media_files)
+        }
         with open(self.media_path, "w") as media_file:
             json.dump(media_json, media_file)
-
 
         # Copy media files to the folder
         for idx, path in enumerate(media_files):
@@ -84,8 +93,9 @@ class DeckWrangler:
             shutil.copy(path, dest_path)
 
     def commit(self, with_name: Optional[str] = None, overwrite: bool = False):
-        pkg_name = (with_name or self.name)
-        if not pkg_name.endswith('.apkg'): pkg_name += '.apkg'
+        pkg_name = with_name or self.name
+        if not pkg_name.endswith(".apkg"):
+            pkg_name += ".apkg"
         if os.path.exists(pkg_name):
             if overwrite:
                 os.remove(pkg_name)
@@ -98,8 +108,10 @@ class DeckWrangler:
             name="cards", con=self.engine, if_exists="replace", index=False
         )
         if self.uses_zstd:
-            with open(self.zstd_db_path, 'wb') as compressed_file,\
-                 open(self.db_path, 'rb') as decompressed_file:
+            with (
+                open(self.zstd_db_path, "wb") as compressed_file,
+                open(self.db_path, "rb") as decompressed_file,
+            ):
                 compressed_file.write(pyzstd.compress(decompressed_file.read()))
         with zipfile.ZipFile(pkg_name, "w", zipfile.ZIP_DEFLATED) as zip_f:
             zipdir(self.name, zip_f)
@@ -113,31 +125,3 @@ class DeckWrangler:
                 f'An exception occurred with "{self.name}" open (closed succesfully).'
             )
             return False  # Propagate the exception
-
-
-if __name__=="__main__":
-    with DeckWrangler("Japanese__Dictionary of Japanese Grammar +F +A", proceed_if_unzipped=True) as deck:
-        print(deck.notes['flds'][0].split('\x1f')[0])
-        print(deck.uses_zstd)
-        deck.commit(with_name="balls1")
-    with DeckWrangler("balls1", proceed_if_unzipped=True) as deck:
-        flds = deck.notes['flds'][0].split('\x1f')
-        flds[0] = flds[0]+'balls'
-        flds = '\x1f'.join(flds)
-        deck.notes.loc[0,'flds'] = flds
-        deck.commit(with_name="balls1b")
-    with DeckWrangler("balls1b", proceed_if_unzipped=True) as deck:
-        print(deck.notes['flds'][0].split('\x1f')[0])
-        
-    with DeckWrangler("Japanese__Dictionary of Japanese Grammar Revised", proceed_if_unzipped=True) as deck:
-        print(deck.notes['flds'][0].split('\x1f')[0])
-        print(deck.uses_zstd)
-        deck.commit(with_name="balls2")
-    with DeckWrangler("balls2", proceed_if_unzipped=True) as deck:
-        flds = deck.notes['flds'][0].split('\x1f')
-        flds[0] = flds[0]+'balls'
-        flds = '\x1f'.join(flds)
-        deck.notes.loc[0,'flds'] = flds
-        deck.commit(with_name="balls2b")
-    with DeckWrangler("balls2b", proceed_if_unzipped=True) as deck:
-        print(deck.notes['flds'][0].split('\x1f')[0])
