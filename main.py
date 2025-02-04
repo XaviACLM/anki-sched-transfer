@@ -34,15 +34,15 @@ parser.add_argument(
 )
 parser.add_argument(
     "--missing",
-    choices=["zero-out", "ignore"],
+    choices=["suspend", "ignore"],
     help="""How to handle the situation if some cards from the source deck have no equivalent in the destination deck. Unnecessary argument otherwise.
 ignore: proceed as normal.
-zero-out: suspend all cards on the source deck that do have an equivalent on the destination deck. This is so that the source deck can continue being used to study only those cards that could not be transferred.""",
+suspend: suspend all cards on the source deck that do have an equivalent on the destination deck. This is so that the source deck can continue being used to study only those cards that could not be transferred.""",
 )
 parser.add_argument(
     "--output-source",
     type=str,
-    help="Only relevant if --missing is set to zero-out, ignored otherwise. Apkg filename to which the modified source deck will be saved. Defaults to the same value as --source (thus overwriting the source deck). Changing this name will NOT change the name of the anki deck itself, only the .apkg file.",
+    help="Only relevant if --missing is set to suspend, ignored otherwise. Apkg filename to which the modified source deck will be saved. Defaults to the same value as --source (thus overwriting the source deck). Changing this name will NOT change the name of the anki deck itself, only the .apkg file.",
 )
 
 
@@ -113,13 +113,13 @@ def main(args):
         if args.missing is None:
             raise Exception(
                 f"""Because not all cards in the source deck have a match in the destination deck, the script will only run when the '--missing' flag has been set.
-    In most instances, if you intend to continue studying all the material of the source deck (albeit having transferred part of it to the destination deck), you'll want to use '--missing zero-out'. This will suspend all the cards on the source deck that get transferred to the destination deck, meaning you can continue using the source deck to study only the cards that did not get transferred.
+    In most instances, if you intend to continue studying all the material of the source deck (albeit having transferred part of it to the destination deck), you'll want to use '--missing suspend'. This will suspend all the cards on the source deck that get transferred to the destination deck, meaning you can continue using the source deck to study only the cards that did not get transferred.
     If for some other reason you do not want to do this, use '--missing ignore' - this will transfer the scheduling data from the source deck to the destination deck only for cards which exist in both, but leave the source deck untouched. There will be no way to continue studying the material that is only on the source deck, unless you go back to the source deck entirely.
     """
             )
-        elif args.missing == "zero-out":
+        elif args.missing == "suspend":
             print(
-                f"The '--missing' argument has been set to zero-out, so cards in the source deck that have their scheduling data transferred onto the destination deck will be suspended in the source deck."
+                f"The '--missing' argument has been set to suspend, so cards in the source deck that have their scheduling data transferred onto the destination deck will be suspended in the source deck."
             )
         elif args.missing == "ignore":
             print(
@@ -248,7 +248,7 @@ def main(args):
 
         new_deck.commit(with_name=output_name, overwrite=True)
 
-        if args.missing == "zero-out":
+        if args.missing == "suspend":
             old_sched_data.loc[index_pairs["id_old"], "queue"] = -1
             old_sched_data.to_sql(
                 name="cards", con=old_deck.engine, if_exists="replace", index=False
@@ -258,6 +258,6 @@ def main(args):
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    # args = parser.parse_args(['-s','Japanese__Dictionary of Japanese Grammar Revised','-d','Dictionary of Japanese Grammar +F +A','-o','output-destination','--missing','zero-out','--output-source','output-source'])
-    # args = parser.parse_args('-s', 'Japanese__Recognition RTK', '-d', 'Japanese__Recognition Migaku', '-o', 'output-destination','--missing', 'zero-out', '--output-source', 'output-source'])
+    # args = parser.parse_args(['-s','Japanese__Dictionary of Japanese Grammar Revised','-d','Dictionary of Japanese Grammar +F +A','-o','output-destination','--missing','suspend','--output-source','output-source'])
+    # args = parser.parse_args('-s', 'Japanese__Recognition RTK', '-d', 'Japanese__Recognition Migaku', '-o', 'output-destination','--missing', 'suspend', '--output-source', 'output-source'])
     main(args)
