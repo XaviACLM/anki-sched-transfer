@@ -7,7 +7,7 @@ import argparse
 import pandas as pd
 import regex as re
 
-from deck_wrangling import DeckWrangler
+from deck_wrangling import ApkgAsPandas
 
 parser = argparse.ArgumentParser(
     prog="scheduling-transfer",
@@ -74,6 +74,7 @@ fix_okurigana_snafus = (
 remove_pissy_notes = lambda text: text.replace(
     "(literally no example with you) ", ""
 ).replace("(e-stem) ", "")
+remove_e_stem_paren = lambda text: text.replace("(エの形) ","")
 
 substitutions = {
     "逹": "達",  # miswritten character
@@ -127,8 +128,8 @@ def main(args):
             )
 
     with (
-        DeckWrangler(source_name, proceed_if_unzipped=True) as old_deck,
-        DeckWrangler(destination_name, proceed_if_unzipped=True) as new_deck,
+        ApkgAsPandas(source_name, proceed_if_unzipped=True) as old_deck,
+        ApkgAsPandas(destination_name, proceed_if_unzipped=True) as new_deck,
     ):
         new_field_data = new_deck.notes[["id", "flds"]].set_index("id")
         new_sched_data = new_deck.cards.set_index("nid")
@@ -146,6 +147,7 @@ def main(args):
 
         # for new vs old furiganized dojg decks (the latter has more steps b/c it was an old deck that i manually modified over time)
         normalized_names_new = new_field_data["flds"].apply(select_first_field)
+        normalized_names_new = normalized_names_new.apply(remove_e_stem_paren)
         normalized_names_new = normalized_names_new.apply(MultipleAnnotator().process)
 
         normalized_names_old = old_field_data["flds"].apply(select_first_field)
@@ -181,7 +183,7 @@ def main(args):
             )
 
         n_overlap = len(set(normalized_names_new) & set(normalized_names_old))
-        print(f"source deck contains {n_old} cards.")
+        print(f"Source deck contains {n_old} cards.")
         print(f"Destination deck contains {n_new} cards.")
         print(
             f"{n_overlap} (on each deck) of these cards have been matched to transfer scheduling data."
@@ -246,18 +248,18 @@ def main(args):
             name="cards", con=new_deck.engine, if_exists="replace", index=False
         )
 
-        new_deck.commit(with_name=output_name, overwrite=True)
+        new_deck.commit_and_save(with_name=output_name, overwrite=True)
 
         if args.missing == "suspend":
             old_sched_data.loc[index_pairs["id_old"], "queue"] = -1
             old_sched_data.to_sql(
                 name="cards", con=old_deck.engine, if_exists="replace", index=False
             )
-            old_deck.commit(with_name=output_source_name, overwrite=True)
+            old_deck.commit_and_save(with_name=output_source_name, overwrite=True)
 
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    # args = parser.parse_args(['-s','Japanese__Dictionary of Japanese Grammar Revised','-d','Dictionary of Japanese Grammar +F +A','-o','output-destination','--missing','suspend','--output-source','output-source'])
+    # args = parser.parse_args(['-s','Japanese__Dictionary of Japanese Grammar +F +A with_scheduling_info','-d','Dictionary of Japanese Grammar +F +A','-o','output-destination','--missing','suspend','--output-source','output-source'])
     # args = parser.parse_args('-s', 'Japanese__Recognition RTK', '-d', 'Japanese__Recognition Migaku', '-o', 'output-destination','--missing', 'suspend', '--output-source', 'output-source'])
     main(args)
